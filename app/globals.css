@@ -1,26 +1,172 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Updated to green-themed design tokens for trading wrapped */
+  --background: oklch(1 0 0); /* Pure white */
+  --foreground: oklch(0.35 0.15 145); /* Deep green */
+  --card: oklch(0.98 0.02 145); /* Very light green tint */
+  --card-foreground: oklch(0.25 0.1 145); /* Dark green for card text */
+  --popover: oklch(1 0 0); /* White */
+  --popover-foreground: oklch(0.25 0.1 145); /* Dark green */
+  --primary: oklch(0.45 0.2 145); /* Rich green */
+  --primary-foreground: oklch(1 0 0); /* White text on green */
+  --secondary: oklch(0.65 0.15 120); /* Bright lime green */
+  --secondary-foreground: oklch(1 0 0); /* White text */
+  --muted: oklch(0.96 0.02 145); /* Light green background */
+  --muted-foreground: oklch(0.5 0.05 145); /* Muted green text */
+  --accent: oklch(0.65 0.15 120); /* Bright accent green */
+  --accent-foreground: oklch(1 0 0); /* White text on accent */
+  --destructive: oklch(0.577 0.245 27.325); /* Red for losses */
+  --destructive-foreground: oklch(1 0 0); /* White text on red */
+  --border: oklch(0.9 0.02 145); /* Light green border */
+  --input: oklch(0.98 0.02 145); /* Light green input background */
+  --ring: oklch(0.45 0.2 145 / 0.3); /* Green focus ring */
+  --chart-1: oklch(0.6 0.18 145); /* Chart green 1 */
+  --chart-2: oklch(0.65 0.15 120); /* Chart green 2 */
+  --chart-3: oklch(0.7 0.12 100); /* Chart green 3 */
+  --chart-4: oklch(0.55 0.2 160); /* Chart green 4 */
+  --chart-5: oklch(0.5 0.15 180); /* Chart green 5 */
+  --radius: 0.75rem; /* Rounded corners */
+  --sidebar: oklch(0.98 0.02 145); /* Light green sidebar */
+  --sidebar-foreground: oklch(0.25 0.1 145); /* Dark green sidebar text */
+  --sidebar-primary: oklch(0.45 0.2 145); /* Green sidebar primary */
+  --sidebar-primary-foreground: oklch(1 0 0); /* White text */
+  --sidebar-accent: oklch(0.65 0.15 120); /* Bright green accent */
+  --sidebar-accent-foreground: oklch(1 0 0); /* White text */
+  --sidebar-border: oklch(0.9 0.02 145); /* Light green border */
+  --sidebar-ring: oklch(0.45 0.2 145 / 0.3); /* Green focus ring */
+}
+
+.dark {
+  /* Dark mode with green theme */
+  --background: oklch(0.08 0.02 145); /* Very dark green */
+  --foreground: oklch(0.95 0.02 145); /* Light green text */
+  --card: oklch(0.12 0.03 145); /* Dark green card */
+  --card-foreground: oklch(0.95 0.02 145); /* Light text on cards */
+  --popover: oklch(0.12 0.03 145); /* Dark green popover */
+  --popover-foreground: oklch(0.95 0.02 145); /* Light text */
+  --primary: oklch(0.65 0.15 120); /* Bright green primary */
+  --primary-foreground: oklch(0.08 0.02 145); /* Dark text on bright green */
+  --secondary: oklch(0.2 0.05 145); /* Dark green secondary */
+  --secondary-foreground: oklch(0.95 0.02 145); /* Light text */
+  --muted: oklch(0.15 0.03 145); /* Muted dark green */
+  --muted-foreground: oklch(0.7 0.05 145); /* Muted light green text */
+  --accent: oklch(0.65 0.15 120); /* Bright green accent */
+  --accent-foreground: oklch(0.08 0.02 145); /* Dark text on accent */
+  --destructive: oklch(0.5 0.2 25); /* Dark red for losses */
+  --destructive-foreground: oklch(0.95 0.02 145); /* Light text on red */
+  --border: oklch(0.2 0.05 145); /* Dark green border */
+  --input: oklch(0.15 0.03 145); /* Dark green input */
+  --ring: oklch(0.65 0.15 120 / 0.4); /* Bright green focus ring */
+  --chart-1: oklch(0.6 0.18 145); /* Chart colors remain vibrant */
+  --chart-2: oklch(0.65 0.15 120);
+  --chart-3: oklch(0.7 0.12 100);
+  --chart-4: oklch(0.55 0.2 160);
+  --chart-5: oklch(0.5 0.15 180);
+  --sidebar: oklch(0.1 0.02 145); /* Dark green sidebar */
+  --sidebar-foreground: oklch(0.95 0.02 145); /* Light sidebar text */
+  --sidebar-primary: oklch(0.65 0.15 120); /* Bright green primary */
+  --sidebar-primary-foreground: oklch(0.08 0.02 145); /* Dark text */
+  --sidebar-accent: oklch(0.2 0.05 145); /* Dark green accent */
+  --sidebar-accent-foreground: oklch(0.95 0.02 145); /* Light text */
+  --sidebar-border: oklch(0.2 0.05 145); /* Dark green border */
+  --sidebar-ring: oklch(0.65 0.15 120 / 0.4); /* Bright green ring */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Added custom animations for Spotify Wrapped-style transitions */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.8s ease-out;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease-in-out infinite;
 }

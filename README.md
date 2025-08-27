@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Moralis API configuration
+
+To enable the secured request, provide your Moralis API key.
+
+1. Create a `.env.local` file at the project root.
+2. Add:
+
+```
+MORALIS_API_KEY=your_api_key
+```
+
+3. Restart the dev server if it was running.
+
+After this, the frontend sends requests to the secured path `/api/swaps`, and the server proxies to `https://deep-index.moralis.io/api/v2.2/wallets/:address/swaps` with the `x-api-key` header.
