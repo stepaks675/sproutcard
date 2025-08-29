@@ -170,3 +170,36 @@
   background-size: 200% 200%;
   animation: gradientShift 3s ease-in-out infinite;
 }
+
+/* Additional subtle float/glow animations */
+@keyframes floatY {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.animate-float-slow {
+  animation: floatY 10s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0px rgba(16, 185, 129, 0.0);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(16, 185, 129, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 0px rgba(16, 185, 129, 0.0);
+  }
+}
+
+.animate-glow {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
