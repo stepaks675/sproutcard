@@ -188,6 +188,11 @@
   animation: floatY 10s ease-in-out infinite;
 }
 
+@media (max-width: 480px) {
+  .text-7xl { font-size: 3rem; }
+  .text-9xl { font-size: 4rem; }
+}
+
 @keyframes pulseGlow {
   0% {
     box-shadow: 0 0 0px rgba(16, 185, 129, 0.0);

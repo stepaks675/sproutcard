@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { motion, AnimatePresence } from "framer-motion"
+import { FaTelegramPlane, FaCopy, FaTwitter, FaMagic } from "react-icons/fa"
 
 function formatUsd(value) {
   const num = Number(value)
@@ -54,6 +56,47 @@ const COMP_YEARS = 5
 const COMP_RATES = [0.05, 0.15, 0.25]
 const MAX_STEP = 5
 
+function AutoSizeText({ text, maxPx = 120, minPx = 36, className = "" }) {
+  const containerRef = useRef(null)
+  const spanRef = useRef(null)
+  const [fontSize, setFontSize] = useState(maxPx)
+
+  useEffect(() => {
+    const resize = () => {
+      const container = containerRef.current
+      const span = spanRef.current
+      if (!container || !span) return
+      const available = Math.max(0, container.clientWidth - 8)
+      let size = maxPx
+      span.style.fontSize = `${size}px`
+      span.style.whiteSpace = "nowrap"
+      span.style.display = "inline-block"
+      while (span.scrollWidth > available && size > minPx) {
+        size -= 2
+        span.style.fontSize = `${size}px`
+      }
+      setFontSize(size)
+    }
+    resize()
+    let ro
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(resize)
+      if (containerRef.current) ro.observe(containerRef.current)
+    }
+    window.addEventListener("resize", resize)
+    return () => {
+      window.removeEventListener("resize", resize)
+      if (ro && containerRef.current) ro.unobserve(containerRef.current)
+    }
+  }, [text, maxPx, minPx])
+
+  return (
+    <div ref={containerRef} className="w-full">
+      <span ref={spanRef} className={className} style={{ fontSize }}>{text}</span>
+    </div>
+  )
+}
+
 export default function Home() {
   const [address, setAddress] = useState("")
   const [loading, setLoading] = useState(false)
@@ -64,6 +107,7 @@ export default function Home() {
   const canvasRef = useRef(null)
   const [xHandle, setXHandle] = useState("")
   const [cardReady, setCardReady] = useState(false)
+  const formRef = useRef(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -123,6 +167,12 @@ export default function Home() {
     }
   }
 
+  
+
+  function fillDemoAddress() {
+    setAddress("0x4d26f0e78c154f8fda7acf6646246fa135507017")
+  }
+
   const restart = () => {
     setCurrentStep(0)
     setResult(null)
@@ -150,12 +200,62 @@ export default function Home() {
     }
   }
 
+  function shareOnX() {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`
+    openShare(url)
+  }
+
+  function shareOnTelegram() {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`
+    openShare(url)
+  }
+
+  async function triggerConfetti() {
+    try {
+      const mod = await import("canvas-confetti")
+      const confetti = mod.default || mod
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 },
+      })
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  // Keyboard navigation across steps
+  useEffect(() => {
+    function onKeyDown(e) {
+      const tag = e.target?.tagName?.toLowerCase()
+      const isTyping = tag === "input" || tag === "textarea" || e.target?.isContentEditable
+      if (isTyping) return
+      if (e.key === "ArrowRight") {
+        nextStep()
+      } else if (e.key === "ArrowLeft") {
+        prevStep()
+      } else if (e.key === "Enter" && currentStep >= 1 && currentStep < 5) {
+        nextStep()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [currentStep])
+
   // Auto-generate image when entering Step 5
   useEffect(() => {
     if (currentStep === 5 && cardReady) {
       drawShareCard()
+      triggerConfetti()
     }
   }, [currentStep, pnl, invested, address, sproutProfit, xHandle, cardReady])
+
+  // Celebrate green PnL on Step 3
+  useEffect(() => {
+    if (currentStep === 3 && pnl > 0) {
+      triggerConfetti()
+    }
+  }, [currentStep, pnl])
 
   function drawShareCard() {
     const canvas = canvasRef.current
@@ -331,193 +431,226 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step 1: Welcome Screen */}
-        {currentStep === 1 && (
-          <div className="relative z-10 min-h-screen flex items-center justify-center p-6 animate-fade-in-scale">
-            <div className="text-center max-w-2xl">
-              <div className="mb-8">
-                <h1 className="text-5xl md:text-7xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-4">
-                  2025
-                </h1>
-                <h2 className="text-xl md:text-3xl font-semibold text-foreground mb-2">Your Trading Year</h2>
-                <p className="text-lg text-muted-foreground">Let’s dive into your onchain trading journey</p>
-              </div>
-              <Button
-                onClick={nextStep}
-                size="lg"
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 animate-glow"
-              >
-                Show me my stats ✨
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Investment Amount */}
-        {currentStep === 2 && (
-          <div className="relative z-10 min-h-screen flex items-center justify-center p-6 animate-slide-in-up">
-            <div className="text-center max-w-2xl">
-              <div className="mb-12">
-                <p className="text-lg text-muted-foreground mb-4">You invested</p>
-                <div className="text-7xl md:text-9xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-6">
-                  {formatUsd(invested)}
+        <AnimatePresence mode="wait">
+          {/* Step 1: Welcome Screen */}
+          {currentStep === 1 && (
+            <motion.div
+              key={1}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
+            >
+              <div className="text-center max-w-2xl">
+                <div className="mb-8">
+                  <h1 className="text-5xl md:text-7xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-4">
+                    2025
+                  </h1>
+                  <h2 className="text-xl md:text-3xl font-semibold text-foreground mb-2">Your Trading Year</h2>
+                  <p className="text-lg text-muted-foreground">Let’s dive into your onchain trading journey</p>
+                  <p className="text-sm text-muted-foreground mt-2">Spoiler: there’s green… somewhere. Probably. 👀</p>
                 </div>
-                <p className="text-xl text-muted-foreground">in onchain trading this year</p>
-              </div>
-              <Button
-                onClick={nextStep}
-                size="lg"
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
-              >
-                What about my returns? 📈
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: PnL Results */}
-        {currentStep === 3 && (
-          <div className="relative z-10 min-h-screen flex items-center justify-center p-6 animate-slide-in-up">
-            <div className="text-center max-w-3xl">
-              <div className="mb-12">
-                <p className="text-lg text-muted-foreground mb-4">Your total PnL was</p>
-                <div
-                  className={`text-7xl md:text-9xl font-bold mb-6 ${pnl >= 0 ? "text-primary" : "text-destructive"}`}
-                >
-                  {formatUsd(pnl)}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                  <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
-                    <div className="text-sm text-muted-foreground mb-2">Realized</div>
-                    <div className={`text-3xl font-bold ${realized >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {formatUsd(realized)}
-                    </div>
-                  </Card>
-                  <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
-                    <div className="text-sm text-muted-foreground mb-2">Unrealized</div>
-                    <div className={`text-3xl font-bold ${unrealized >= 0 ? "text-primary" : "text-destructive"}`}>
-                      {formatUsd(unrealized)}
-                    </div>
-                  </Card>
-                </div>
-              </div>
-              <Button
-                onClick={nextStep}
-                size="lg"
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
-              >
-                But what if... 🤔
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Potential Earnings */}
-        {currentStep === 4 && (
-          <div className="relative z-10 min-h-screen flex items-center justify-center p-6 animate-slide-in-up">
-            <div className="text-center max-w-5xl">
-              <div className="mb-12">
-                <h2 className="text-3xl md:text-5xl font-bold mb-4 text-foreground">
-                  What if you invested in Sprout instead?
-                </h2>
-                <p className="text-lg text-muted-foreground mb-8">
-                  Here’s what your {formatUsd(invested)} could have earned with compound interest
-                </p>
-
-                {invested > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {compounds.map((c, index) => (
-                      <Card
-                        key={c.rate}
-                        className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105"
-                      >
-                        <div className="text-center">
-                          <div className="text-2xl font-bold text-primary mb-2">{Math.round(c.rate * 100)}% APY</div>
-                          <div className="text-4xl font-bold text-foreground mb-2">{formatUsd(c.earnings)}</div>
-                          <div className="text-sm text-muted-foreground mb-4">Total: {formatUsd(c.final)}</div>
-                          <div className="text-xs text-muted-foreground">Over 5 years</div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No invested amount detected.</p>
-                )}
-              </div>
-
-              <div className="flex gap-4 justify-center">
                 <Button
-                  onClick={restart}
-                  variant="outline"
+                  onClick={nextStep}
                   size="lg"
-                  className="px-8 py-4 text-lg rounded-full border-primary/20 hover:border-primary/40 bg-transparent"
+                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 animate-glow"
                 >
-                  Try another address
+                  Show me my stats ✨
                 </Button>
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
-                >
-                  Start investing with Sprout 🌱
-                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 2: Investment Amount */}
+          {currentStep === 2 && (
+            <motion.div
+              key={2}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
+            >
+              <div className="text-center max-w-2xl">
+                <div className="mb-12 w-full max-w-[90vw] md:max-w-2xl">
+                  <p className="text-lg text-muted-foreground">You invested approx.</p>
+                  <AutoSizeText
+                    text={formatUsd(invested)}
+                    maxPx={104}
+                    minPx={24}
+                    className="font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent leading-tight block"
+                  />
+                  <p className="text-xl text-muted-foreground">in onchain trading this year</p>
+                  <p className="text-sm text-muted-foreground mt-2">We didn’t count your legendary “just ape” moments. Yet. 🦍</p>
+                </div>
                 <Button
                   onClick={nextStep}
                   size="lg"
                   className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
                 >
-                  Share my stats 📣
+                  What about my returns? 📈
                 </Button>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
 
-        {/* Step 5: Share - only the image */}
-        {currentStep === 5 && (
-          <div className="relative z-10 min-h-screen flex items-center justify-center p-6 animate-slide-in-up">
-            <div className="text-center w-full">
-              <div className="mx-auto w-full max-w-3xl flex flex-col items-center gap-4">
-                {!cardReady && (
-                  <div className="w-full flex flex-col sm:flex-row gap-3 items-center justify-center">
-                    <input
-                      className="border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg w-full sm:w-80"
-                      placeholder="Your X handle (e.g., @trader)"
-                      value={xHandle}
-                      onChange={(e) => setXHandle(e.target.value)}
-                    />
-                    <Button onClick={() => setCardReady(true)} className="px-6">Generate</Button>
+          {/* Step 3: PnL Results */}
+          {currentStep === 3 && (
+            <motion.div
+              key={3}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
+            >
+              <div className="text-center max-w-3xl">
+                <div className="mb-12">
+                  <p className="text-lg text-muted-foreground mb-4">Your total PnL was</p>
+                  <AutoSizeText
+                    text={formatUsd(pnl)}
+                    maxPx={104}
+                    minPx={28}
+                    className={`font-bold mb-6 leading-tight ${pnl >= 0 ? "text-primary" : "text-destructive"}`}
+                  />
+                  <p className="text-sm text-muted-foreground">If it’s red, we blame the market maker. If it’s green, skill issue (yours). 😉</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+                      <div className="text-sm text-muted-foreground mb-2">Realized</div>
+                      <div className={`text-3xl font-bold ${realized >= 0 ? "text-primary" : "text-destructive"}`}>
+                        {formatUsd(realized)}
+                      </div>
+                    </Card>
+                    <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
+                      <div className="text-sm text-muted-foreground mb-2">Unrealized</div>
+                      <div className={`text-3xl font-bold ${unrealized >= 0 ? "text-primary" : "text-destructive"}`}>
+                        {formatUsd(unrealized)}
+                      </div>
+                    </Card>
                   </div>
-                )}
-                {cardReady && (
-                  <>
-                    <canvas ref={canvasRef} className="w-full h-auto rounded-xl shadow-2xl bg-white" />
-                    <div className="flex gap-3 justify-center mt-2">
-                      <Button onClick={copyShareCard} className="px-6">{copied ? "Copied!" : "Copy image"}</Button>
-                      <Button onClick={downloadShareCard} variant="outline" className="px-6">Download PNG</Button>
-                      <Button variant="outline" className="px-6" onClick={() => { setCardReady(false); }}>Edit handle</Button>
-                    </div>
-                  </>
-                )}
+                </div>
+                <Button
+                  onClick={nextStep}
+                  size="lg"
+                  className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
+                >
+                  But what if... 🤔
+                </Button>
               </div>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
 
-        {/* Progress indicator (hidden on step 5) */}
-        {currentStep !== 5 && (
-          <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-20">
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((step) => (
-                <div
-                  key={step}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    step <= currentStep ? "bg-primary" : "bg-primary/20"
-                  }`}
-                />
-              ))}
-            </div>
+          {/* Step 4: Potential Earnings */}
+          {currentStep === 4 && (
+            <motion.div
+              key={4}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
+            >
+              <div className="text-center max-w-5xl">
+                <div className="mb-12">
+                  <h2 className="text-3xl md:text-5xl font-bold mb-4 text-foreground">
+                    What if you invested in Sprout instead?
+                  </h2>
+                  <p className="text-lg text-muted-foreground mb-2">
+                    Here’s what your {formatUsd(invested)} could have earned with compound interest
+                  </p>
+                  <p className="text-sm text-muted-foreground">Math is honest. Markets… not always. 📚</p>
+
+                  {invested > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-6 md:mt-8">
+                      {compounds.map((c, index) => (
+                        <motion.div key={c.rate} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.08 }}>
+                          <Card
+                            className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105"
+                          >
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-primary mb-2">{Math.round(c.rate * 100)}% APY</div>
+                              <div className="text-3xl sm:text-4xl font-bold text-foreground mb-2 leading-tight">{formatUsd(c.earnings)}</div>
+                              <div className="text-sm text-muted-foreground mb-4">Total: {formatUsd(c.final)}</div>
+                              <div className="text-xs text-muted-foreground">Over 5 years</div>
+                            </div>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">No invested amount detected.</p>
+                  )}
+                </div>
+
+                <div className="flex gap-4 justify-center">
+                  <Button
+                    onClick={nextStep}
+                    size="lg"
+                    className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground px-8 py-4 text-lg rounded-full"
+                  >
+                    Share my stats 📣
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 5: Share - only the image */}
+          {currentStep === 5 && (
+            <motion.div
+              key={5}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="relative z-10 min-h-screen flex items-center justify-center p-6"
+            >
+              <div className="text-center w-full">
+                <div className="mx-auto w-full max-w-3xl flex flex-col items-center gap-4">
+                  {!cardReady && (
+                    <div className="w-full flex flex-col sm:flex-row gap-3 items-center justify-center">
+                      <input
+                        className="border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg w-full sm:w-80"
+                        placeholder="Your X handle (e.g., @trader)"
+                        value={xHandle}
+                        onChange={(e) => setXHandle(e.target.value)}
+                      />
+                      <Button onClick={() => setCardReady(true)} className="px-6 gap-2"> <FaMagic /> Generate</Button>
+                    </div>
+                  )}
+                  {cardReady && (
+                    <>
+                      <canvas ref={canvasRef} className="w-full h-auto rounded-xl shadow-2xl bg-white" />
+                      <div className="flex flex-wrap gap-3 justify-center mt-2">
+                        <Button onClick={copyShareCard} className="px-6">{copied ? "Copied!" : "Copy image"}</Button>
+                        <Button onClick={downloadShareCard} variant="outline" className="px-6">Download PNG</Button>
+                        <Button variant="outline" className="px-6" onClick={() => { setCardReady(false); }}>Edit handle</Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Tag @sproutfi_xyz if it slaps 🔥</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Progress indicator - clickable dots */}
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px))" }}>
+          <div className="flex gap-3 items-center">
+            {[1, 2, 3, 4, 5].map((step) => (
+              <button
+                key={step}
+                onClick={() => setCurrentStep(step)}
+                title={`Step ${step}`}
+                className={`w-4 h-4 sm:w-3 sm:h-3 rounded-full transition-all duration-300 border-0 outline-none focus:outline-none focus:ring-0 p-0 ${
+                  step === currentStep ? "bg-primary" : "bg-primary/20 hover:bg-primary/40"
+                } cursor-pointer`}
+              />
+            ))}
           </div>
-        )}
+        </div>
       </div>
     )
   }
@@ -532,23 +665,27 @@ export default function Home() {
           </div>
         </div>
       )}
-      <div className="text-center mb-8">
-        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-4">
-          bro
+      <div className="text-center mb-4">
+        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+          Sproutcard Wrapped
         </h1>
-        <p className="text-xl text-muted-foreground">Discover your onchain trading journey vs. investing in Sprout</p>
+        <p className="text-xl text-muted-foreground">Let's unveil your onchain trading PNL</p>
       </div>
 
       <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 shadow-xl">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={handleSubmit} ref={formRef} className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <label className="text-lg font-medium text-foreground">Enter your EVM address</label>
-            <input
-              className="border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg"
-              placeholder="0x..."
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
+            <div className="flex gap-2 items-center">
+              <input
+                className="flex-1 border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg"
+                placeholder="0x..."
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+              <Button type="button" variant="secondary" onClick={fillDemoAddress} title="Use demo address">Demo</Button>
+            </div>
+            <span className="text-xs text-muted-foreground">We only fetch public onchain data.</span>
           </div>
 
           {error && (
@@ -566,7 +703,7 @@ export default function Home() {
             className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
             disabled={loading}
           >
-            {loading ? "Analyzing your trades..." : "Show me already ✨"}
+            {loading ? "Analyzing your trades..." : "Summon the alpha →"}
           </Button>
         </form>
       </Card>
