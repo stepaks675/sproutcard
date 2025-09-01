@@ -667,7 +667,7 @@ export default function Home() {
       )}
       <div className="text-center mb-4">
         <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-          Sproutcard Wrapped
+          Sprouted?
         </h1>
         <p className="text-xl text-muted-foreground">Let's unveil your onchain trading PNL</p>
       </div>
