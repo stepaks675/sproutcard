@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState, useEffect } from "react"
+import { useMemo, useRef, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
@@ -79,14 +79,15 @@ function AutoSizeText({ text, maxPx = 120, minPx = 36, className = "" }) {
     }
     resize()
     let ro
+    let containerEl = containerRef.current
     if (typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(resize)
-      if (containerRef.current) ro.observe(containerRef.current)
+      if (containerEl) ro.observe(containerEl)
     }
     window.addEventListener("resize", resize)
     return () => {
       window.removeEventListener("resize", resize)
-      if (ro && containerRef.current) ro.unobserve(containerRef.current)
+      if (ro && containerEl) ro.unobserve(containerEl)
     }
   }, [text, maxPx, minPx])
 
@@ -161,11 +162,9 @@ export default function Home() {
     })
   }, [invested])
 
-  const nextStep = () => {
-    if (currentStep < MAX_STEP) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
+  const nextStep = useCallback(() => {
+    setCurrentStep((prev) => (prev < MAX_STEP ? prev + 1 : prev))
+  }, [])
 
   
 
@@ -233,14 +232,15 @@ export default function Home() {
       if (e.key === "ArrowRight") {
         nextStep()
       } else if (e.key === "ArrowLeft") {
-        prevStep()
+        // no prev button, but still allow going back via keyboard
+        if (currentStep > 1) setCurrentStep(currentStep - 1)
       } else if (e.key === "Enter" && currentStep >= 1 && currentStep < 5) {
         nextStep()
       }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [currentStep])
+  }, [currentStep, nextStep])
 
   // Auto-generate image when entering Step 5
   useEffect(() => {
@@ -248,7 +248,8 @@ export default function Home() {
       drawShareCard()
       triggerConfetti()
     }
-  }, [currentStep, pnl, invested, address, sproutProfit, xHandle, cardReady])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, cardReady])
 
   // Celebrate green PnL on Step 3
   useEffect(() => {
@@ -448,8 +449,8 @@ export default function Home() {
                     2025
                   </h1>
                   <h2 className="text-xl md:text-3xl font-semibold text-foreground mb-2">Your Trading Year</h2>
-                  <p className="text-lg text-muted-foreground">Let’s dive into your onchain trading journey</p>
-                  <p className="text-sm text-muted-foreground mt-2">Spoiler: there’s green… somewhere. Probably. 👀</p>
+                  <p className="text-lg text-muted-foreground">Let&apos;s dive into your onchain trading journey</p>
+                  <p className="text-sm text-muted-foreground mt-2">Spoiler: there&apos;s green… somewhere. Probably. 👀</p>
                 </div>
                 <Button
                   onClick={nextStep}
@@ -482,7 +483,7 @@ export default function Home() {
                     className="font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent leading-tight block"
                   />
                   <p className="text-xl text-muted-foreground">in onchain trading this year</p>
-                  <p className="text-sm text-muted-foreground mt-2">We didn’t count your legendary “just ape” moments. Yet. 🦍</p>
+                  <p className="text-sm text-muted-foreground mt-2">We didn&apos;t count your legendary “just ape” moments. Yet. 🦍</p>
                 </div>
                 <Button
                   onClick={nextStep}
@@ -514,7 +515,7 @@ export default function Home() {
                     minPx={28}
                     className={`font-bold mb-6 leading-tight ${pnl >= 0 ? "text-primary" : "text-destructive"}`}
                   />
-                  <p className="text-sm text-muted-foreground">If it’s red, we blame the market maker. If it’s green, skill issue (yours). 😉</p>
+                  <p className="text-sm text-muted-foreground">If it&apos;s red, we blame the market maker. If it&apos;s green, skill issue (yours). 😉</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                     <Card className="p-6 bg-card/50 backdrop-blur-sm border-primary/20">
                       <div className="text-sm text-muted-foreground mb-2">Realized</div>
@@ -557,7 +558,7 @@ export default function Home() {
                     What if you invested in Sprout instead?
                   </h2>
                   <p className="text-lg text-muted-foreground mb-2">
-                    Here’s what your {formatUsd(invested)} could have earned with compound interest
+                    Here&apos;s what your {formatUsd(invested)} could have earned with compound interest
                   </p>
                   <p className="text-sm text-muted-foreground">Math is honest. Markets… not always. 📚</p>
 
@@ -669,7 +670,7 @@ export default function Home() {
         <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
           Sprouted?
         </h1>
-        <p className="text-xl text-muted-foreground">Let's unveil your onchain trading PNL</p>
+        <p className="text-xl text-muted-foreground">Let&apos;s unveil your onchain trading PNL</p>
       </div>
 
       <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 shadow-xl">
