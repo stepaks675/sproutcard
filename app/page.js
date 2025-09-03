@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useRef, useState, useEffect, useCallback } from "react"
+import { useMemo, useRef, useState, useEffect, useCallback, useLayoutEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
@@ -55,6 +55,20 @@ function buildShareText({ invested, pnl, realized, unrealized }) {
 const COMP_YEARS = 5
 const COMP_RATES = [0.05, 0.15, 0.25]
 const MAX_STEP = 5
+const USE_MOCK = true
+const EASE = [0.16, 1, 0.3, 1]
+const DURATION_IN = 0.7
+const DURATION_OUT = 0.7
+
+function getMockResponse() {
+  const investedUsd = 12850.0
+  const realizedPnlUsd = 1804.4
+  const unrealizedPnlUsd = 646.23
+  const pnl = realizedPnlUsd + unrealizedPnlUsd
+  const holdings = { ETH: 0.85, ARB: 260, OP: 120 }
+  const holdingsValueUsd = 7350.0
+  return { pnl, realizedPnlUsd, unrealizedPnlUsd, investedUsd, holdings, holdingsValueUsd }
+}
 
 function AutoSizeText({ text, maxPx = 120, minPx = 36, className = "" }) {
   const containerRef = useRef(null)
@@ -98,6 +112,188 @@ function AutoSizeText({ text, maxPx = 120, minPx = 36, className = "" }) {
   )
 }
 
+function ChartTransition({ onComplete, loop = false }) {
+  const data = useMemo(() => [12, 26, 36, 32, 48, 64, 86], [])
+  const maxValue = 100
+  useEffect(() => {
+    if (loop) return
+    const t = setTimeout(() => {
+      onComplete?.()
+    }, 2400)
+    return () => clearTimeout(t)
+  }, [loop, onComplete])
+
+  const chartWidth = 720
+  const chartHeight = 220
+  const paddingX = 28
+  const paddingY = 20
+  const innerW = chartWidth - paddingX * 2
+  const innerH = chartHeight - paddingY * 2
+  const n = data.length
+  const stepX = n > 1 ? innerW / (n - 1) : innerW
+
+  // Single timeline for stable looping
+  const TOTAL = 6.0
+  const REVEAL = 5
+  const WIPE = 1.2
+  const HOLD = Math.max(0, TOTAL - REVEAL - WIPE)
+  const BAR_RISE = 0.6
+  const DOT_RISE = 0.3
+  // Ensure last bar has full rise time by finishing exactly at REVEAL
+  const STAGGER = n > 1 ? Math.max(0, (REVEAL - BAR_RISE) / (n - 1)) : 0
+  const LINE_DURATION = REVEAL + HOLD
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v))
+  const EPS = 0.0005
+
+  const points = data.map((v, i) => {
+    const centerX = paddingX + i * stepX
+    const x = centerX
+    const y = paddingY + innerH * (1 - Math.min(1, Math.max(0, v / maxValue)))
+    return `${x},${y}`
+  }).join(" ")
+
+  return (
+    <motion.div
+      key="chart-transition"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-gradient-to-br from-primary/30 via-background/95 to-accent/30 backdrop-blur-md animate-gradient"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 1.2, ease: EASE } }}
+      transition={{ duration: DURATION_IN, ease: EASE }}
+    >
+      <div className="relative w-[90vw] max-w-4xl">
+        <motion.div
+          initial={{ opacity: 0, y: 10, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, transition: { duration: 1.2, ease: EASE } }}
+          transition={{ duration: DURATION_IN, ease: EASE }}
+          className="rounded-2xl border border-primary/20 bg-card/70 backdrop-blur-md shadow-2xl p-5"
+        >
+          <div className="w-full overflow-hidden">
+            <div className="mx-auto max-w-3xl">
+              <svg width="100%" viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+                <defs>
+                  <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" />
+                  </linearGradient>
+                  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                    <feMerge>
+                      <feMergeNode in="coloredBlur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <g>
+                  {/* grid lines */}
+                  {Array.from({ length: 4 }).map((_, i) => {
+                    const y = paddingY + (innerH / 4) * (i + 1)
+                    return (
+                      <motion.line
+                        key={`grid-${i}`}
+                        x1={paddingX}
+                        x2={paddingX + innerW}
+                        y1={y}
+                        y2={y}
+                        stroke="currentColor"
+                        strokeWidth="1"
+                        className="text-foreground/10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.6, ease: EASE, delay: 0.08 * i }}
+                      />
+                    )
+                  })}
+
+                  {data.map((v, i) => {
+                    const norm = Math.min(1, Math.max(0, v / maxValue))
+                    const barW = 20
+                    const centerX = paddingX + i * stepX
+                    const x = centerX - barW / 2
+                    const h = innerH * norm
+                    const y = paddingY + (innerH - h)
+                    const startSec = i * STAGGER
+                    const riseEndSec = Math.min(startSec + BAR_RISE, REVEAL)
+                    const wipeStartSec = REVEAL + HOLD
+                    const t0 = 0
+                    const tStart = clamp(startSec / TOTAL, EPS, 1 - EPS)
+                    const tRiseEnd = clamp(riseEndSec / TOTAL, tStart + EPS, 1 - EPS)
+                    const tWipeStart = clamp(wipeStartSec / TOTAL, tRiseEnd + EPS, 1 - EPS)
+                    return (
+                      <motion.rect
+                        key={i}
+                        x={x}
+                        y={y}
+                        width={barW}
+                        height={h}
+                        rx="6"
+                        className="fill-primary/70"
+                        initial={loop ? { scaleY: 0, opacity: 1 } : { height: 0, opacity: 1, y: paddingY + innerH }}
+                        animate={loop ? { scaleY: [0, 0, 1, 1, 0], opacity: [1, 1, 1, 1, 1] } : { height: h, opacity: 1, y }}
+                        transition={loop ? { duration: TOTAL, ease: "linear", times: [t0, tStart, tRiseEnd, tWipeStart, 1], repeat: Infinity, repeatType: "loop" } : { duration: BAR_RISE, ease: EASE, delay: startSec }}
+                        style={loop ? { originY: 1 } : undefined}
+                      />
+                    )
+                  })}
+                  <motion.polyline
+                    points={points}
+                    fill="url(#chartFill)"
+                    className="text-primary"
+                    initial={{ opacity: 0 }}
+                    animate={loop ? { opacity: [0, 0.8, 0.8, 0] } : { opacity: 1 }}
+                    transition={loop ? { duration: TOTAL, ease: "linear", times: [0, REVEAL / TOTAL, (REVEAL + HOLD) / TOTAL, 1], repeat: Infinity, repeatType: "loop" } : { duration: LINE_DURATION, ease: EASE }}
+                  />
+                  <motion.polyline
+                    points={points}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-primary"
+                    filter="url(#glow)"
+                    initial={{ pathLength: 0 }}
+                    animate={loop ? { pathLength: [0, 1, 1, 0] } : { pathLength: 1 }}
+                    transition={loop ? { duration: TOTAL, ease: "linear", times: [0, REVEAL / TOTAL, (REVEAL + HOLD) / TOTAL, 1], repeat: Infinity, repeatType: "loop" } : { duration: LINE_DURATION, ease: EASE }}
+                    style={{ pathLength: 1 }}
+                  />
+                  {data.map((v, i) => {
+                    const centerX = paddingX + i * stepX
+                    const x = centerX
+                    const y = paddingY + innerH * (1 - Math.min(1, Math.max(0, v / maxValue)))
+                    const barStartSec = i * STAGGER
+                    const startSec = Math.min(barStartSec + BAR_RISE * 0.85, REVEAL)
+                    const riseEndSec = Math.min(startSec + DOT_RISE, REVEAL)
+                    const wipeStartSec = REVEAL + HOLD
+                    const t0 = 0
+                    const tStart = clamp(startSec / TOTAL, EPS, 1 - EPS)
+                    const tRiseEnd = clamp(riseEndSec / TOTAL, tStart + EPS, 1 - EPS)
+                    const tWipeStart = clamp(wipeStartSec / TOTAL, tRiseEnd + EPS, 1 - EPS)
+                    return (
+                      <motion.circle
+                        key={`dot-${i}`}
+                        cx={x}
+                        cy={y}
+                        r="5.5"
+                        className="fill-background stroke-primary"
+                        strokeWidth="3"
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={loop ? { opacity: [0, 0, 1, 1, 0], scale: [0.9, 0.9, 1, 1, 0.9] } : { scale: 1, opacity: 1 }}
+                        transition={loop ? { duration: TOTAL, ease: "linear", times: [t0, tStart, tRiseEnd, tWipeStart, 1], repeat: Infinity, repeatType: "loop" } : { duration: DOT_RISE, ease: EASE, delay: startSec }}
+                      />
+                    )
+                  })}
+                </g>
+              </svg>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </motion.div>
+  )
+}
+
 export default function Home() {
   const [address, setAddress] = useState("")
   const [loading, setLoading] = useState(false)
@@ -108,6 +304,7 @@ export default function Home() {
   const canvasRef = useRef(null)
   const [xHandle, setXHandle] = useState("")
   const [cardReady, setCardReady] = useState(false)
+  const [redrawTick, setRedrawTick] = useState(0)
   const formRef = useRef(null)
 
   async function handleSubmit(e) {
@@ -124,6 +321,16 @@ export default function Home() {
 
     setLoading(true)
     try {
+      if (USE_MOCK) {
+        // Simulate network latency of 3s as requested
+        await new Promise((r) => setTimeout(r, 3000))
+        const data = getMockResponse()
+        setResult(data)
+        setCurrentStep(1)
+        setTimeout(() => setLoading(false), 120)
+        return
+      }
+
       const res = await fetch("/api/swaps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -134,11 +341,11 @@ export default function Home() {
         setError(typeof data?.error === "string" ? data.error : "Error requesting Moralis")
       } else {
         setResult(data)
-        setTimeout(() => setCurrentStep(1), 500)
+        setCurrentStep(1)
+        setTimeout(() => setLoading(false), 120)
       }
     } catch (err) {
       setError("Network error. Please try again later.")
-    } finally {
       setLoading(false)
     }
   }
@@ -242,14 +449,23 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [currentStep, nextStep])
 
-  // Auto-generate image when entering Step 5
+  // Auto-generate image when entering Step 5 (no confetti)
   useEffect(() => {
     if (currentStep === 5 && cardReady) {
       drawShareCard()
-      triggerConfetti()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, cardReady])
+
+  // Keep canvas in sync if inputs change while on Step 5 (no confetti)
+  useLayoutEffect(() => {
+    if (currentStep === 5 && cardReady) {
+      drawShareCard()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invested, pnl, realized, unrealized, sproutProfit, xHandle, redrawTick])
+
+  // ChartTransition controls its own completion via onComplete
 
   // Celebrate green PnL on Step 3
   useEffect(() => {
@@ -267,6 +483,8 @@ export default function Home() {
     canvas.width = width * dpr
     canvas.height = height * dpr
     const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.scale(dpr, dpr)
 
     // Background gradient
@@ -413,34 +631,80 @@ export default function Home() {
     })
   }
 
-  if (result && currentStep > 0) {
-    return (
-      <div className="min-h-screen w-full relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/10 animate-gradient" />
-        {/* Animated decorative shapes */}
-        <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-accent/20 blur-3xl animate-float-slow" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 w-80 h-80 rounded-full bg-primary/20 blur-3xl animate-float-slow" />
+  const showSteps = result && currentStep > 0
 
-        {/* Loading overlay */}
+  return (
+    <div className="min-h-screen w-full relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/10 animate-gradient" />
+      {/* Animated decorative shapes */}
+      <div className="pointer-events-none absolute -top-24 -right-24 w-72 h-72 rounded-full bg-accent/20 blur-3xl animate-float-slow" />
+      <div className="pointer-events-none absolute -bottom-16 -left-16 w-80 h-80 rounded-full bg-primary/20 blur-3xl animate-float-slow" />
+
+      {/* Global loading overlay: keep one stable instance to avoid restart */}
+      <AnimatePresence>
         {loading && (
-          <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="text-6xl animate-spin">🌿</div>
-              <div className="text-lg text-muted-foreground">Loading data...</div>
-            </div>
-          </div>
+          <ChartTransition key="loading-chart-global" loop onComplete={() => {}} />
         )}
+      </AnimatePresence>
 
+      {/* Content */}
+      {!showSteps && (
+        <main className="w-full max-w-4xl mx-auto p-6 sm:p-8 lg:p-10 flex flex-col justify-center gap-8 relative z-10">
+          <div className="text-center mb-4">
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+              Sprouted?
+            </h1>
+            <p className="text-xl text-muted-foreground">Let&apos;s unveil your onchain trading PNL</p>
+          </div>
+
+          <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 shadow-xl">
+            <form onSubmit={handleSubmit} ref={formRef} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <label className="text-lg font-medium text-foreground">Enter your EVM address</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    className="flex-1 border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg"
+                    placeholder="0x..."
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                  <Button type="button" variant="secondary" onClick={fillDemoAddress} title="Use demo address">Demo</Button>
+                </div>
+                <span className="text-xs text-muted-foreground">We only fetch public onchain data.</span>
+              </div>
+
+              {error && (
+                <div
+                  className="text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20"
+                  role="alert"
+                >
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                size="lg"
+                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                disabled={loading}
+              >
+                {loading ? "Analyzing your trades..." : "Summon the alpha →"}
+              </Button>
+            </form>
+          </Card>
+        </main>
+      )}
+
+      {showSteps && (
         <AnimatePresence mode="wait">
-          {/* Step 1: Welcome Screen */}
           {currentStep === 1 && (
             <motion.div
               key={1}
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -12, scale: 0.992 }}
+              transition={{ duration: DURATION_IN, ease: EASE }}
               className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
             >
               <div className="text-center max-w-2xl">
@@ -463,14 +727,13 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Step 2: Investment Amount */}
           {currentStep === 2 && (
             <motion.div
               key={2}
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -12, scale: 0.992 }}
+              transition={{ duration: DURATION_IN, ease: EASE }}
               className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
             >
               <div className="text-center max-w-2xl">
@@ -496,14 +759,13 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Step 3: PnL Results */}
           {currentStep === 3 && (
             <motion.div
               key={3}
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -12, scale: 0.992 }}
+              transition={{ duration: DURATION_IN, ease: EASE }}
               className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
             >
               <div className="text-center max-w-3xl">
@@ -542,14 +804,13 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Step 4: Potential Earnings */}
           {currentStep === 4 && (
             <motion.div
               key={4}
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -12, scale: 0.992 }}
+              transition={{ duration: DURATION_IN, ease: EASE }}
               className="relative z-10 min-h-[100svh] flex items-center justify-center p-4 sm:p-6"
             >
               <div className="text-center max-w-5xl">
@@ -597,14 +858,13 @@ export default function Home() {
             </motion.div>
           )}
 
-          {/* Step 5: Share - only the image */}
           {currentStep === 5 && (
             <motion.div
               key={5}
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
+              initial={{ opacity: 0, y: 18, scale: 0.985 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              exit={{ opacity: 0, y: -12, scale: 0.992 }}
+              transition={{ duration: DURATION_IN, ease: EASE }}
               className="relative z-10 min-h-screen flex items-center justify-center p-6"
             >
               <div className="text-center w-full">
@@ -617,15 +877,15 @@ export default function Home() {
                         value={xHandle}
                         onChange={(e) => setXHandle(e.target.value)}
                       />
-                      <Button onClick={() => setCardReady(true)} className="px-6 gap-2"> <FaMagic /> Generate</Button>
+                      <Button onClick={() => { setCardReady(true); setTimeout(() => drawShareCard(), 0); }} className="px-6 gap-2"> <FaMagic /> Generate</Button>
                     </div>
                   )}
                   {cardReady && (
                     <>
                       <canvas ref={canvasRef} className="w-full h-auto rounded-xl shadow-2xl bg-white" />
                       <div className="flex flex-wrap gap-3 justify-center mt-2">
-                        <Button onClick={copyShareCard} className="px-6">{copied ? "Copied!" : "Copy image"}</Button>
                         <Button onClick={downloadShareCard} variant="outline" className="px-6">Download PNG</Button>
+                        <Button onClick={copyShareCard} className="px-6">{copied ? "Copied!" : "Copy image"}</Button>
                         <Button variant="outline" className="px-6" onClick={() => { setCardReady(false); }}>Edit handle</Button>
                       </div>
                       <p className="text-xs text-muted-foreground">Tag @sproutfi_xyz if it slaps 🔥</p>
@@ -636,8 +896,10 @@ export default function Home() {
             </motion.div>
           )}
         </AnimatePresence>
+      )}
 
-        {/* Progress indicator - clickable dots */}
+      {/* Progress indicator - clickable dots */}
+      {showSteps && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px))" }}>
           <div className="flex gap-3 items-center">
             {[1, 2, 3, 4, 5].map((step) => (
@@ -652,62 +914,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <main className="min-h-screen w-full max-w-4xl mx-auto p-6 sm:p-8 lg:p-10 flex flex-col justify-center gap-8">
-      {loading && (
-        <div className="fixed inset-0 z-50 bg-background/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="text-6xl animate-spin">🌿</div>
-            <div className="text-lg text-muted-foreground">Loading data...</div>
-          </div>
-        </div>
       )}
-      <div className="text-center mb-4">
-        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-          Sprouted?
-        </h1>
-        <p className="text-xl text-muted-foreground">Let&apos;s unveil your onchain trading PNL</p>
-      </div>
-
-      <Card className="p-8 bg-card/50 backdrop-blur-sm border-primary/20 shadow-xl">
-        <form onSubmit={handleSubmit} ref={formRef} className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <label className="text-lg font-medium text-foreground">Enter your EVM address</label>
-            <div className="flex gap-2 items-center">
-              <input
-                className="flex-1 border border-input rounded-xl px-4 py-3 bg-input text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-all duration-200 text-lg"
-                placeholder="0x..."
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-              <Button type="button" variant="secondary" onClick={fillDemoAddress} title="Use demo address">Demo</Button>
-            </div>
-            <span className="text-xs text-muted-foreground">We only fetch public onchain data.</span>
-          </div>
-
-          {error && (
-            <div
-              className="text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            size="lg"
-            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-            disabled={loading}
-          >
-            {loading ? "Analyzing your trades..." : "Summon the alpha →"}
-          </Button>
-        </form>
-      </Card>
-    </main>
+    </div>
   )
 }
