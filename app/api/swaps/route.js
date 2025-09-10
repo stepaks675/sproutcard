@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 const MORALIS_BASE = "https://deep-index.moralis.io/api/v2.2";
 const DEFAULT_CHAINS = [
   "eth",
-  "polygon",
   "bsc",
   "arbitrum",
   "base",

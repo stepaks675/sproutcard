@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useEffect, useCallback, useLayoutEffect } fr
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
-import { FaTelegramPlane, FaCopy, FaTwitter, FaMagic } from "react-icons/fa"
+import { FaMagic } from "react-icons/fa"
 
 function formatUsd(value) {
   const num = Number(value)
@@ -53,12 +53,12 @@ function buildShareText({ invested, pnl, realized, unrealized }) {
 }
 
 const COMP_YEARS = 5
-const COMP_RATES = [0.05, 0.15, 0.25]
+const COMP_RATES = [0.05, 0.12, 0.25]
+const COMP_LABELS = ["Ultra Low Risk", "Mid Risk", "High Risk"]
 const MAX_STEP = 5
-const USE_MOCK = true
+const USE_MOCK = false
 const EASE = [0.16, 1, 0.3, 1]
 const DURATION_IN = 0.7
-const DURATION_OUT = 0.7
 
 function getMockResponse() {
   const investedUsd = 12850.0
@@ -361,11 +361,11 @@ export default function Home() {
 
   const compounds = useMemo(() => {
     if (!Number.isFinite(invested) || invested <= 0) return []
-    return COMP_RATES.map((r) => {
+    return COMP_RATES.map((r, index) => {
       const final = compoundFutureValue(invested, r, COMP_YEARS)
       const earnings = final - invested
       const schedule = buildAnnualSchedule(invested, r, COMP_YEARS)
-      return { rate: r, final, earnings, schedule }
+      return { rate: r, final, earnings, schedule, label: COMP_LABELS[index] }
     })
   }, [invested])
 
@@ -831,7 +831,8 @@ export default function Home() {
                             className="p-6 bg-card/50 backdrop-blur-sm border-primary/20 hover:border-primary/40 transition-all duration-300 hover:scale-105"
                           >
                             <div className="text-center">
-                              <div className="text-2xl font-bold text-primary mb-2">{Math.round(c.rate * 100)}% APY</div>
+                              <div className="text-2xl font-bold text-primary mb-1">{Math.round(c.rate * 100)}% APY</div>
+                              <div className="text-xs text-muted-foreground mb-2">{c.label}</div>
                               <div className="text-3xl sm:text-4xl font-bold text-foreground mb-2 leading-tight">{formatUsd(c.earnings)}</div>
                               <div className="text-sm text-muted-foreground mb-4">Total: {formatUsd(c.final)}</div>
                               <div className="text-xs text-muted-foreground">Over 5 years</div>

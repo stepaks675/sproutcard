@@ -12,23 +12,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Sproutcard Wrapped — Onchain Trading Recap",
+  title: "Sproutcard Generator",
   description: "See your 2025 trading PnL and a shareable card in seconds.",
   openGraph: {
-    title: "Sproutcard Wrapped — Onchain Trading Recap",
+    title: "Sproutcard Generator",
     description: "See your 2025 trading PnL and a shareable card in seconds.",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Sproutcard Wrapped",
+        alt: "Sproutcard Generator",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sproutcard Wrapped — Onchain Trading Recap",
+    title: "Sproutcard Generator",
     description: "See your 2025 trading PnL and a shareable card in seconds.",
     images: ["/og.png"],
   },
